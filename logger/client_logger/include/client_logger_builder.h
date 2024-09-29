@@ -47,6 +47,10 @@ public:
 
     [[nodiscard]] logger *build() const override;
 
+private:
+    void copy(client_logger_builder const &other);
+    void move(client_logger_builder &&other);
+
 };
 
 #endif //MATH_PRACTICE_AND_OPERATING_SYSTEMS_CLIENT_LOGGER_BUILDER_H
