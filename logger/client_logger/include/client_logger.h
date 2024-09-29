@@ -10,6 +10,8 @@ class client_logger final:
 
 public:
 
+    client_logger(std::map<std::string, unsigned char> const &, std::string const &);
+
     client_logger(
         client_logger const &other);
 
