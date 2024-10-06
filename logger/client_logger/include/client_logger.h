@@ -3,6 +3,8 @@
 
 #include <logger.h>
 #include "client_logger_builder.h"
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 class client_logger final:
     public logger

@@ -14,7 +14,7 @@ private:
 
 public:
 
-    client_logger_builder();
+    client_logger_builder() = default;
 
     client_logger_builder(
         client_logger_builder const &other);

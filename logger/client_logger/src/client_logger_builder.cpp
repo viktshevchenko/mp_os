@@ -4,10 +4,6 @@
 
 #include <client_logger.h>
 
-client_logger_builder::client_logger_builder()
-{
-
-}
 
 client_logger_builder::client_logger_builder(
     client_logger_builder const &other)
@@ -82,7 +78,26 @@ logger_builder* client_logger_builder::transform_with_configuration(
     std::string const &configuration_file_path,
     std::string const &configuration_path)
 {
-    throw not_implemented("logger_builder* client_logger_builder::transform_with_configuration(std::string const &configuration_file_path, std::string const &configuration_path)", "your code should be here...");
+    std::ifstream configuration_file(configuration_file_path);
+    if(!configuration_file)
+        throw std::runtime_error("File does not exist");
+
+    nlohmann::json data;
+    configuration_file >> data;
+
+    for(const auto &file_path : data[configuration_path]) {
+        std::string path = file_path["path"];
+        auto severity = file_path["severity"];
+
+        for(const std::string &s : severity)
+            this->add_file_stream(path, string_to_severity(s));
+    }
+
+    this->_output_format = data["format"];
+
+    configuration_file.close();
+
+    return this;
 }
 
 logger_builder *client_logger_builder::clear()
