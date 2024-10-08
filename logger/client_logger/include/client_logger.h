@@ -14,11 +14,11 @@ private:
     std::map<std::string, unsigned char> _files;
     std::string _output_format;
     static std::map<std::string, std::pair<std::ofstream*, int>> all_streams;
-    client_logger(std::map<std::string, unsigned char> const &files, std::string const& output_format);
 
     friend class client_logger_builder;
 
 public:
+    client_logger(std::map<std::string, unsigned char> const &files, std::string const& output_format);
 
     client_logger(
         client_logger const &other);
