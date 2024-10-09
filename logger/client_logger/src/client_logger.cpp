@@ -18,8 +18,12 @@ client_logger::client_logger(std::map<std::string, unsigned char> const &files, 
                 std::ofstream* file = new std::ofstream(pair.first);
 
                 if(!file) {
-                    throw std::runtime_error("File does not exist");
                     delete file;
+
+                    for(auto f : all_streams)
+                        f.second.first->close();
+
+                    throw std::runtime_error("File does not exist");
                 }
 
                 all_streams[pair.first] = {file, 1};
@@ -118,28 +122,27 @@ std::string client_logger::formating_string(std::string const &text, logger::sev
     std::string str;
 
     for(auto i = 0; i < _output_format.size(); i++) {
-        if(_output_format[i] == '%' && _output_format[i+1] == 'd') {
-            str += current_datetime_to_string().substr(0, 10);
-            i++;
-            continue;
-        }
-
-        if(_output_format[i] == '%' && _output_format[i+1] == 't') {
-            str += current_datetime_to_string().substr(10, 9);
-            i++;
-            continue;
-        }
-
-        if(_output_format[i] == '%' && _output_format[i+1] == 's') {
-            str += severity_to_string(severity);
-            i++;
-            continue;
-        }
-
-        if(_output_format[i] == '%' && _output_format[i+1] == 't') {
-            str += text;
-            i++;
-            continue;
+        if(_output_format[i] == '%' && (i + 1) != _output_format.size()) {
+            switch(_output_format[i+1]) {
+                case 'd':
+                    str += current_datetime_to_string().substr(0, 10);
+                    i++;
+                    break;
+                case 't':
+                    str += current_datetime_to_string().substr(10, 9);
+                    i++;
+                    break;
+                case 's':
+                    str += severity_to_string(severity);
+                    i++;
+                    break;
+                case 'm':
+                    str += text;
+                    i++;
+                    break;
+                default:
+                    continue;
+            }
         }
 
         str += _output_format[i];

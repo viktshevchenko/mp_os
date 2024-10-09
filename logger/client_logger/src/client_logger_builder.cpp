@@ -49,14 +49,16 @@ logger_builder *client_logger_builder::add_file_stream(
 {
     if(stream_file_path.empty())
         throw std::logic_error("Path cant be empty");
-    std::map<std::string, unsigned char>::iterator i = files.find(stream_file_path);
+    std::string absolute_file_path = get_absolute_path(stream_file_path);
+    std::map<std::string, unsigned char>::iterator i = files.find(absolute_file_path);
+
     if(i != files.end()) {
         if((i->second >> static_cast<int>(severity)) & 1 )
             return this;
         i->second ^= (1 << static_cast<int>(severity));
         return this;
     }
-    files.emplace(stream_file_path, 1 << static_cast<int>(severity));
+    files.emplace(absolute_file_path, 1 << static_cast<int>(severity));
     return this;
 }
 
@@ -103,6 +105,7 @@ logger_builder* client_logger_builder::transform_with_configuration(
 logger_builder *client_logger_builder::clear()
 {
     files.clear();
+    _output_format = " ";
     return this;
 }
 
@@ -119,4 +122,8 @@ void client_logger_builder::copy(client_logger_builder const &other) {
 void client_logger_builder::move(client_logger_builder &&other) {
     files = std::move(other.files);
     _output_format = std::move(other._output_format);
+}
+
+inline std::string const client_logger_builder::get_absolute_path(std::string const &file_path) {
+    return std::filesystem::absolute(file_path).string();
 }

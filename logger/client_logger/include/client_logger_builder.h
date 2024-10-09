@@ -3,6 +3,7 @@
 
 #include <logger_builder.h>
 #include <map>
+#include <filesystem>
 
 class client_logger_builder final:
     public logger_builder
@@ -50,6 +51,8 @@ public:
 private:
     void copy(client_logger_builder const &other);
     void move(client_logger_builder &&other);
+
+    inline std::string const get_absolute_path(std::string const &file_path);
 
 };
 
