@@ -6,9 +6,15 @@
 client_logger::client_logger(std::map<std::string, unsigned char> const &files, std::string const &format)
     :_files(files)
 {
-    if(format.find("%d") == std::string::npos || format.find("%t") == std::string::npos
-        || format.find("%s") == std::string::npos || format.find("%m") == std::string::npos)
-        throw std::logic_error("Format is invalid");
+    for(auto i = 0; i < format.size(); i++) {
+        if(format[i] == '%') {
+            if(i == format.size() - 1)
+                throw std::logic_error("Format is invalid");
+
+            if(!isalpha(format[i+1]))
+                throw std::logic_error("Format is invalid");
+        }
+    }
     _output_format = format;
 
     for(const auto& pair : _files) {
