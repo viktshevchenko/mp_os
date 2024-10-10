@@ -57,6 +57,8 @@ private:
     
     inline std::string get_typename() const noexcept override;
 
+    std::string bytes_dump(unsigned char const *bytes, size_t size_block);
+
 public:
 
 };
