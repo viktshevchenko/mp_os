@@ -89,7 +89,7 @@ void allocator_global_heap::deallocate(
 
 inline logger *allocator_global_heap::get_logger() const
 {
-    debug_with_guard("return _logger get_logger()");
+    //debug_with_guard("return _logger get_logger()");
     return _logger;
 }
 

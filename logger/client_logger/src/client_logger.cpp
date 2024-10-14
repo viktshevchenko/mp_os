@@ -1,6 +1,7 @@
 #include <not_implemented.h>
 
 #include "../include/client_logger.h"
+std::map<std::string, std::pair<std::ofstream*, int>> client_logger::all_streams;
 
 
 client_logger::client_logger(std::map<std::string, unsigned char> const &files, std::string const &format)

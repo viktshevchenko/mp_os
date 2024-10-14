@@ -7,7 +7,7 @@
 
 TEST(allocatorGlobalHeapTests, test1)
 {
-    logger_builder *logger_builder_instance = new client_logger_builder;
+    client_logger_builder *logger_builder_instance = new client_logger_builder;
     
     logger *logger_instance = logger_builder_instance
         ->add_file_stream("gh_alc_test1_logs.txt", logger::severity::debug)
