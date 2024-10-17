@@ -4,6 +4,9 @@
 
 #include <client_logger.h>
 
+client_logger_builder::client_logger_builder(): _output_format("%d %t %s %m") {
+
+}
 
 client_logger_builder::client_logger_builder(
     client_logger_builder const &other)

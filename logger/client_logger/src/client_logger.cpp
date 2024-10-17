@@ -31,8 +31,11 @@ client_logger::client_logger(std::map<std::string, unsigned char> const &files, 
                 if(!file) {
                     delete file;
 
-                    for(auto f : all_streams)
+                    for(auto f : all_streams){
                         f.second.first->close();
+                        delete f.second.first;
+                    }
+
 
                     throw std::runtime_error("File does not exist");
                 }
@@ -152,7 +155,7 @@ std::string client_logger::formating_string(std::string const &text, logger::sev
                     i++;
                     break;
                 default:
-                    continue;
+                    ;
             }
         }
 
