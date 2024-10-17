@@ -76,15 +76,14 @@ void allocator_global_heap::deallocate(
     bytes_dump(bytes, *block_size);
 
     allocator *alloc = nullptr;
+    alloc = reinterpret_cast<allocator*>(block_size - 1);
     try {
-        alloc = reinterpret_cast<allocator*>(block_size - 1);
+        ::operator delete(alloc);
     }
     catch(const std::exception &error) {
         error_with_guard(std::string(error.what()) + " block doesn't belong this allocate deallocate()");
         throw std::logic_error("block doesn't belong this allocate deallocate()");
     }
-
-    ::operator delete(alloc);
 }
 
 inline logger *allocator_global_heap::get_logger() const
