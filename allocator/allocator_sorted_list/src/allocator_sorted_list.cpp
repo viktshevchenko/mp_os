@@ -224,7 +224,34 @@ inline size_t allocator_sorted_list::get_size_block_without_metadata(void *curre
 
 std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_info() const noexcept
 {
-	//TODO: get_block_info()
+	std::vector<allocator_sorted_list::block_info> blocks_info;
+	allocator_sorted_list::block_info info_current_block {};
+
+	void **ptr_on_last_bit_in_allocator = reinterpret_cast<void **>(reinterpret_cast<unsigned char *>
+			(_trusted_memory) +  allocator_metadata_size() + get_size_allocator_without_metadata() - 1);
+	void *ptr_on_next_available_block = get_ptr_on_next_available_block(_trusted_memory);
+	void *ptr = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(_trusted_memory) +
+			allocator_metadata_size() - 1);
+
+	while(ptr != ptr_on_last_bit_in_allocator) {
+		ptr = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(ptr) + 1);
+
+		if (ptr == ptr_on_next_available_block) {
+			info_current_block.is_block_occupied = false;
+			ptr_on_next_available_block = get_ptr_on_next_available_block(ptr);
+		}
+		else
+			info_current_block.is_block_occupied = true;
+
+		info_current_block.block_size = get_size_block_without_metadata(ptr) + block_metadata_size();
+
+		blocks_info.push_back(info_current_block);
+
+		ptr = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(ptr)+ block_metadata_size() +
+				get_size_block_without_metadata(ptr) - 1);
+	}
+
+	return blocks_info;
 }
 
 inline std::string allocator_sorted_list::get_typename() const noexcept
