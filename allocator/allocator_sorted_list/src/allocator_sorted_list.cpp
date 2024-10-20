@@ -164,7 +164,66 @@ allocator_sorted_list::allocator_sorted_list(
 void allocator_sorted_list::deallocate(
     void *at)
 {
-    throw not_implemented("void allocator_sorted_list::deallocate(void *)", "your code should be here...");
+	if(at == nullptr)
+		return;
+
+	get_mutex().lock();
+
+	debug_with_guard("deallocate()");
+
+	void *ptr_on_next_available_block = get_ptr_on_first_available_block();
+	void *ptr_on_previous_available_block = nullptr;
+	void *ptr_on_next_after_previous_block = nullptr;
+	void *ptr_on_previous_before_next_block = nullptr;
+
+	while((ptr_on_previous_available_block < at || ptr_on_previous_available_block == nullptr) &&
+		  ptr_on_next_available_block > at) {
+		ptr_on_previous_available_block = ptr_on_next_available_block;
+		ptr_on_next_available_block = get_ptr_on_next_available_block(ptr_on_next_available_block);
+	}
+
+	if(ptr_on_previous_available_block != nullptr) {
+		ptr_on_next_after_previous_block = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>
+				(ptr_on_previous_available_block) + block_metadata_size() + get_size_block_without_metadata(ptr_on_previous_available_block));
+	}
+
+	if(ptr_on_next_available_block != nullptr) {
+		ptr_on_previous_before_next_block = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>
+				(ptr_on_next_available_block) - get_size_block_without_metadata(at));
+	}
+
+	if(ptr_on_next_available_block == nullptr && ptr_on_next_after_previous_block != at) {
+		ptr_on_next_available_block = reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(at) -
+				block_metadata_size());
+		at = nullptr;
+		debug_with_guard("successfully deallocated " + std::to_string(get_size_block_without_metadata(ptr_on_next_available_block)) + " bytes of memory deallocated()");
+		return;
+	}
+	else if(ptr_on_next_available_block == nullptr && ptr_on_next_after_previous_block == at) {
+		ptr_on_previous_available_block = at;
+		*reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(ptr_on_previous_available_block) + sizeof(size_t)) += get_size_block_without_metadata(at) + block_metadata_size();
+		at = nullptr;
+	}
+	else {
+		if(ptr_on_previous_before_next_block == at) {
+			*reinterpret_cast<void **>(at) = get_ptr_on_next_available_block(ptr_on_next_available_block);
+			*reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(at) - sizeof(size_t)) +=
+					get_size_block_without_metadata(ptr_on_next_available_block) + block_metadata_size();
+		}
+		if(ptr_on_next_after_previous_block == at) {
+			ptr_on_previous_available_block = at;
+			*reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(ptr_on_previous_available_block) + sizeof(size_t)) += get_size_block_without_metadata(at) + block_metadata_size();
+			at = nullptr;
+		}
+		else {
+			at = ptr_on_next_available_block;
+			ptr_on_previous_available_block = at;
+		}
+
+	}
+
+	debug_with_guard("successfully deallocated " + std::to_string(get_size_block_without_metadata(at)) + " bytes of memory deallocated()");
+	get_mutex().unlock();
 }
 
 inline void allocator_sorted_list::set_fit_mode(
@@ -207,9 +266,7 @@ inline size_t allocator_sorted_list::get_size_allocator_without_metadata() const
 
 inline void *&allocator_sorted_list::get_ptr_on_first_available_block() const {
 	debug_with_guard("get_ptr_on_first_available_block()");
-	return *reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(_trusted_memory) + sizeof(allocator *) +
-									  sizeof(logger *) + sizeof(std::mutex) + sizeof
-									  (allocator_with_fit_mode::fit_mode) + sizeof(size_t));
+	return *reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(_trusted_memory) + sizeof(allocator*) + sizeof(logger *) + sizeof(std::mutex) + sizeof(allocator_with_fit_mode::fit_mode) + sizeof(size_t));
 }
 
 inline void *&allocator_sorted_list::get_ptr_on_next_available_block(void *current_available_block) const {
