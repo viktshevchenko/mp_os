@@ -92,6 +92,8 @@ private:
     constexpr size_t allocator_metadata_size() const;
 
 	void free_memory();
+
+	void log_trusted_memory_dump() const;
 };
 
 #endif //MATH_PRACTICE_AND_OPERATING_SYSTEMS_ALLOCATOR_ALLOCATOR_SORTED_LIST_H

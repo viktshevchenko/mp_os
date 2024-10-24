@@ -56,9 +56,7 @@ logger_builder *client_logger_builder::add_file_stream(
     std::map<std::string, unsigned char>::iterator i = files.find(absolute_file_path);
 
     if(i != files.end()) {
-        if((i->second >> static_cast<int>(severity)) & 1 )
-            return this;
-        i->second ^= (1 << static_cast<int>(severity));
+        i->second |= (1 << static_cast<int>(severity));
         return this;
     }
     files.emplace(absolute_file_path, 1 << static_cast<int>(severity));
@@ -70,9 +68,7 @@ logger_builder *client_logger_builder::add_console_stream(
 {
     std::map<std::string, unsigned char>::iterator i = files.find("cerr");
     if(i != files.end()) {
-        if((i->second >> static_cast<int>(severity)) & 1)
-            return this;
-        i->second ^= (1 << static_cast<int>(severity));
+        i->second |= (1 << static_cast<int>(severity));
         return this;
     }
     files.emplace("cerr", (1 << static_cast<int>(severity)));

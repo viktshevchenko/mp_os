@@ -135,15 +135,15 @@ void client_logger::clear() {
 std::string client_logger::formating_string(std::string const &text, logger::severity severity) const {
     std::string str;
 
-    for(auto i = 0; i < _output_format.size(); i++) {
-        if(_output_format[i] == '%' && (i + 1) != _output_format.size()) {
+    for(auto i = 0; i < _output_format.size() - 1; i++) {
+        if(_output_format[i] == '%') {
             switch(_output_format[i+1]) {
                 case 'd':
                     str += current_datetime_to_string().substr(0, 10);
                     i++;
                     break;
                 case 't':
-                    str += current_datetime_to_string().substr(10, 9);
+                    str += current_datetime_to_string().substr(11, 9);
                     i++;
                     break;
                 case 's':
@@ -155,11 +155,11 @@ std::string client_logger::formating_string(std::string const &text, logger::sev
                     i++;
                     break;
                 default:
-                    ;
+					;
             }
         }
-
-        str += _output_format[i];
+		else
+			str += _output_format[i];
     }
 
     return str;
