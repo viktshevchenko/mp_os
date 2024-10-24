@@ -77,6 +77,8 @@ private:
 
 	inline size_t get_size_block_without_metadata(void *current_available_block) const;
 
+	inline size_t &set_block_size(void *block);
+
 public:
     
     std::vector<allocator_test_utils::block_info> get_blocks_info() const noexcept override;

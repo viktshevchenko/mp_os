@@ -107,7 +107,7 @@ logger const *client_logger::log(
         if((pair.second & (1 << static_cast<int>(severity))) != 0) {
             std::string str = formating_string(text, severity);
 
-            if(pair.first != "ceer")
+            if(pair.first != "cerr")
                 *all_streams[pair.first].first << str << std::endl;
             else
                 std::cerr << str << std::endl;
