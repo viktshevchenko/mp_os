@@ -69,17 +69,21 @@ private:
 
 	inline allocator_with_fit_mode::fit_mode &get_fit_mode() const;
 
-	inline size_t get_allocator_size_without_metadata_without_descriptors() const;
+	inline size_t get_allocator_size_without_metadata() const;
+
+	void *get_ptr_on_parent_allocator_block(void *current_block) const;
 
 	inline std::string get_typename() const noexcept override;
 
-	inline void *&get_ptr_on_first_block() const;
+	inline void *get_ptr_on_first_block() const;
 
-	inline void *&get_ptr_on_next_block(void *current_block) const;
+	inline void *get_ptr_on_next_block(void *current_block) const;
 
-	inline void *get_low_descriptor_of_current_block(void *current_block) const;
+	inline void *get_low_descriptor_of_current_block(void *upper_descriptor_of_current_block) const;
 
-	inline size_t get_block_size_without_descriptors(void * current_block) const;
+	inline void *get_upper_descriptor_of_current_block(void *low_descriptor_of_current_block) const;
+
+	inline size_t get_block_size_without_descriptors(void *current_block) const;
 
 	inline bool is_block_occupied(void *current_block) const;
 
@@ -88,6 +92,9 @@ private:
 	void set_status_block_low_border(void *low_border_current_block, bool status);
 
 	void set_block_size(void *current_block, size_t block_size);
+
+	void initialization_descriptor(void *descriptor, bool is_block_occupied, void *parent_allocator, size_t
+	block_size);
 
 public:
     
@@ -102,6 +109,8 @@ private:
 	constexpr size_t allocator_metadata_size() const;
 
 	void free_memory();
+
+	void log_trusted_memory_dump() const;
 };
 
 #endif //MATH_PRACTICE_AND_OPERATING_SYSTEMS_ALLOCATOR_ALLOCATOR_BOUNDARY_TAGS_H
