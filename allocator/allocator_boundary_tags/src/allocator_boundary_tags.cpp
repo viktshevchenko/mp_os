@@ -4,6 +4,8 @@
 
 #include <sstream>
 
+#define DEBUG
+
 allocator_boundary_tags::~allocator_boundary_tags()
 {
 	debug_with_guard("~allocator_boundary_tags() method called");
@@ -17,7 +19,7 @@ allocator_boundary_tags::allocator_boundary_tags(
 		return;
 	}
 
-	std::lock_guard<std::mutex> lock(get_mutex());
+	std::lock_guard<std::mutex> lock(other.get_mutex());
 
 	_trusted_memory = other._trusted_memory;
 	other._trusted_memory = nullptr;
@@ -32,7 +34,7 @@ allocator_boundary_tags &allocator_boundary_tags::operator=(
     if (this != &other) {
 		free_memory();
 
-		std::lock_guard<std::mutex> lock(get_mutex());
+		std::lock_guard<std::mutex> lock(other.get_mutex());
 
 		_trusted_memory = other._trusted_memory;
 		other._trusted_memory = nullptr;
@@ -110,15 +112,17 @@ allocator_boundary_tags::allocator_boundary_tags(
     size_t value_size,
     size_t values_count)
 {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
-	log_trusted_memory_dump();
-
-	debug_with_guard("want allocate " + std::to_string(value_size) + " " + std::to_string(values_count) + " allocate()");
-
 	if(_trusted_memory == nullptr) {
 		throw std::logic_error("allocator instance state was moved");
 	}
+
+	std::lock_guard<std::mutex> lock(get_mutex());
+
+#ifdef DEBUG
+	log_trusted_memory_dump();
+#endif
+
+	debug_with_guard("want allocate " + std::to_string(value_size) + " " + std::to_string(values_count) + " allocate()");
 
 	void *target_block = nullptr;
 	size_t requested_size = value_size * values_count;
@@ -143,7 +147,7 @@ allocator_boundary_tags::allocator_boundary_tags(
 				target_block = current_block;
 				target_block_size = current_block_size;
 
-				if(fit_mode == allocator_with_fit_mode::fit_mode::first_fit)
+				if (fit_mode == allocator_with_fit_mode::fit_mode::first_fit)
 				{
 					break;
 				}
@@ -170,32 +174,15 @@ allocator_boundary_tags::allocator_boundary_tags(
 		initialization_descriptor(target_block, true, _trusted_memory, requested_size);
 
 		initialization_descriptor(get_low_descriptor_of_current_block(target_block), true, _trusted_memory,requested_size);
-
-		/*set_block_size(get_low_descriptor_of_current_block(target_block), target_block_size - requested_size -	descriptors_size());
-
-		set_status_block_upper_border(target_block, true);
-
-		set_block_size(target_block, requested_size);
-
-		void *ptr_on_new_low_descriptor_of_requested_block = get_low_descriptor_of_current_block(target_block);
-
-		set_status_block_low_border(ptr_on_new_low_descriptor_of_requested_block, true);
-
-		set_block_size(ptr_on_new_low_descriptor_of_requested_block, requested_size);
-
-		void *ptr_on_new_upper_descriptor_of_remaining_block = reinterpret_cast<void *>(reinterpret_cast<unsigned
-				char *>(ptr_on_new_low_descriptor_of_requested_block) + descriptor_size());
-
-		set_status_block_upper_border(ptr_on_new_upper_descriptor_of_remaining_block, false);
-
-		set_block_size(ptr_on_new_upper_descriptor_of_remaining_block, target_block_size - requested_size - descriptors_size());*/
 	}
 	else {
 		set_status_block_upper_border(target_block, true);
 		set_status_block_low_border(get_low_descriptor_of_current_block(target_block), true);
 	}
 
+#ifdef DEBUG
 	log_trusted_memory_dump();
+#endif
 
 	return reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(target_block) + descriptor_size());
 }
@@ -203,11 +190,11 @@ allocator_boundary_tags::allocator_boundary_tags(
 void allocator_boundary_tags::deallocate(
     void *at)
 {
-    std::lock_guard<std::mutex>(get_mutex());
-
 	if(_trusted_memory == nullptr) {
 		throw std::logic_error("allocator instance state was moved");
 	}
+
+    std::lock_guard<std::mutex>(get_mutex());
 
 	at = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(at) - descriptor_size());
 
@@ -223,7 +210,9 @@ void allocator_boundary_tags::deallocate(
 		throw std::logic_error("attempt to deallocate block into wrong allocator instance");
 	}
 
+#ifdef DEBUG
 	log_trusted_memory_dump();
+#endif
 
 	set_status_block_upper_border(at, false);
 	set_status_block_low_border(get_low_descriptor_of_current_block(at), false);
@@ -255,7 +244,9 @@ void allocator_boundary_tags::deallocate(
 		}
 	}
 
+#ifdef DEBUG
 	log_trusted_memory_dump();
+#endif
 }
 
 inline void allocator_boundary_tags::set_fit_mode(
