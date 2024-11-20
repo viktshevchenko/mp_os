@@ -4,7 +4,7 @@
 
 #include <sstream>
 
-//#define DEBUG
+#define DEBUG
 
 allocator_buddies_system::~allocator_buddies_system()
 {
@@ -97,7 +97,7 @@ allocator_buddies_system::allocator_buddies_system(
 	void **ptr_on_previous_free_block_placement = reinterpret_cast<void **>(block_size_with_metadata_placement + 1);
 	*ptr_on_previous_free_block_placement = nullptr;
 
-	void **ptr_on_next_free_block_placement = ptr_on_first_free_block_placement + 1;
+	void **ptr_on_next_free_block_placement = ptr_on_previous_free_block_placement + 1;
 	*ptr_on_next_free_block_placement = nullptr;
 
 	debug_with_guard("trusted " + std::to_string(1 << space_size) + " bytes of memory allocator_buddies_system()");
@@ -121,7 +121,7 @@ allocator_buddies_system::allocator_buddies_system(
 	debug_with_guard("want allocate " + std::to_string(value_size) + " " + std::to_string(values_count) + " allocate()");
 
 	void *target_block = nullptr;
-	size_t requested_size = values_count * values_count + block_metadata_size();
+	size_t requested_size = value_size * values_count + block_metadata_size();
 	size_t target_block_size;
 
 	{
@@ -132,7 +132,7 @@ allocator_buddies_system::allocator_buddies_system(
 		allocator_with_fit_mode::fit_mode fit_mode = get_fit_mode();
 		while(current_block < ptr_on_memory_after_trusted)
 		{
-			size_t current_block_size = get_size_current_block_with_metadata(current_block);
+			size_t current_block_size = 1 << get_size_current_block_with_metadata(current_block);
 
 			if(!is_block_occupied(current_block) && current_block_size >= requested_size && (fit_mode == allocator_with_fit_mode::fit_mode::first_fit || (fit_mode == allocator_with_fit_mode::fit_mode::the_best_fit && (target_block == nullptr || current_block_size <	target_block_size)) || (fit_mode == allocator_with_fit_mode::fit_mode::the_worst_fit && (target_block == nullptr || current_block_size < target_block_size))))
 			{
@@ -153,17 +153,34 @@ allocator_buddies_system::allocator_buddies_system(
 		throw std::bad_alloc();
 	}
 
+	initialize_block_metadata(target_block, _trusted_memory, true, get_size_current_block_with_metadata(target_block),  get_ptr_on_previous_available_block(target_block), get_ptr_on_next_available_block(target_block));
+
 	while (target_block_size > requested_size * 2) {
-		size_t new_size = target_block_size - 1;
-		void *ptr_on_buddy = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(target_block) + (1 <<
-				new_size));
+		size_t new_size = get_size_current_block_with_metadata(target_block) - 1;
+		void *ptr_on_buddy = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(target_block) + (1 << 					new_size));
 
-		initialize_block_metadata(&ptr_on_buddy, _trusted_memory, false, new_size, get_ptr_on_previous_available_block
-		(target_block), get_ptr_on_next_available_block(target_block));
+		initialize_block_metadata(ptr_on_buddy, _trusted_memory, false, new_size, get_ptr_on_previous_available_block					(target_block), get_ptr_on_next_available_block(target_block));
 
-		initialize_block_metadata(&target_block, _trusted_memory, true, new_size, nullptr, nullptr);
+		if (get_ptr_on_next_available_block(target_block) != nullptr) {
+			get_ptr_on_previous_available_block(get_ptr_on_next_available_block(target_block)) = ptr_on_buddy;
+		}
 
-		target_block_size = new_size;
+		initialize_block_metadata(target_block, _trusted_memory, true, new_size, get_ptr_on_previous_available_block
+				(target_block), ptr_on_buddy);
+
+		target_block_size = 1 << new_size;
+	}
+
+	if (get_ptr_on_next_available_block(target_block) != nullptr) {
+		get_ptr_on_previous_available_block(get_ptr_on_next_available_block(target_block)) =
+				get_ptr_on_next_available_block(target_block);
+	}
+
+	if (get_ptr_on_previous_available_block(target_block) == nullptr) {
+		get_ptr_on_first_available_block() = get_ptr_on_next_available_block(target_block);
+	}
+	else {
+		get_ptr_on_next_available_block(get_ptr_on_previous_available_block(target_block)) = 				get_ptr_on_next_available_block(target_block);
 	}
 
 	if (requested_size != target_block_size) {
@@ -296,7 +313,7 @@ inline void *&allocator_buddies_system::get_ptr_on_next_available_block(void *cu
 	+ sizeof(size_t) + sizeof(void *));
 }
 
-inline void *allocator_buddies_system::get_ptr_on_previous_available_block(void *current_block) const
+inline void *&allocator_buddies_system::get_ptr_on_previous_available_block(void *current_block) const
 {
 	debug_with_guard("get_ptr_on_previous_available_block(void *) method called");
 	return *reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(current_block) + sizeof(void *) + sizeof(bool) + sizeof(size_t));
@@ -325,8 +342,7 @@ void allocator_buddies_system::initialize_block_metadata(void *ptr_on_block, voi
 														void *ptr_on_next_aval_block)
 {
 	debug_with_guard("initialize_block_metadata() method called");
-	*reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(ptr_on_block) + (1 << new_size)) =
-			ptr_on_parent_allocator;
+	*reinterpret_cast<void **>(ptr_on_block) = ptr_on_parent_allocator;
 	*reinterpret_cast<bool *>(reinterpret_cast<unsigned char *>(ptr_on_block) + sizeof(void *)) = is_block_occupied;
 	*reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(ptr_on_block) + sizeof(void *) + sizeof(bool)) =
 			new_size;
@@ -353,12 +369,12 @@ std::vector<allocator_test_utils::block_info> allocator_buddies_system::get_bloc
 	ptr_on_block = get_ptr_on_first_block();
 
 	while (ptr_on_block != memory_after_trusted_for_allocator) {
-		info_current_block.is_block_occupied = is_block_occupied(&ptr_on_block);
+		info_current_block.is_block_occupied = is_block_occupied(ptr_on_block);
 
 		size_t size_current_block = get_size_current_block_with_metadata(ptr_on_block);
 		info_current_block.block_size = (1 << size_current_block);
 
-		ptr_on_block = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(ptr_on_block) + block_metadata_size() + size_current_block);
+		ptr_on_block = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(ptr_on_block) + (1 << size_current_block));
 
 		blocks_info.push_back(info_current_block);
 	}
