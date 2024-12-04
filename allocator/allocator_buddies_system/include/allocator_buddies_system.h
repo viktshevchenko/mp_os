@@ -78,6 +78,8 @@ private:
 
 	inline void *&get_ptr_on_previous_available_block(void *current_block) const;
 
+	inline void *get_ptr_on_next_block(void *current_block) const;
+
 	inline void *get_ptr_on_parent_allocator(void *current_block) const;
 
 	inline size_t &get_size_current_block_with_metadata(void *current_block) const;

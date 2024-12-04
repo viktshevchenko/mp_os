@@ -155,6 +155,10 @@ allocator_buddies_system::allocator_buddies_system(
 
 	initialize_block_metadata(target_block, _trusted_memory, true, get_size_current_block_with_metadata(target_block),  get_ptr_on_previous_available_block(target_block), get_ptr_on_next_available_block(target_block));
 
+	if(target_block == get_ptr_on_first_available_block()) {
+		get_ptr_on_first_available_block() = get_ptr_on_next_available_block(target_block);
+	}
+
 	while (target_block_size > requested_size * 2) {
 		size_t new_size = get_size_current_block_with_metadata(target_block) - 1;
 		void *ptr_on_buddy = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(target_block) + (1 << 					new_size));
@@ -210,6 +214,10 @@ void allocator_buddies_system::deallocate(
 		throw std::logic_error("invalid block address");
 	}
 
+	if(is_block_occupied(at) == false){
+		return;
+	}
+
 	if (get_ptr_on_parent_allocator(at) != _trusted_memory) {
 		error_with_guard("attempt to deallocate block into wrong allocator instance");
 		throw std::logic_error("attempt to deallocate block into wrong allocator instance");
@@ -227,25 +235,36 @@ void allocator_buddies_system::deallocate(
 		right_available_block = get_ptr_on_next_available_block(left_available_block = right_available_block);
 	}
 
-	if(left_available_block == nullptr && right_available_block == nullptr) {
-		get_ptr_on_next_available_block(get_ptr_on_first_available_block() = at) = nullptr;
-		debug_with_guard("block successfully deallocated deallocate()");
-		return;
+	*reinterpret_cast<bool *>(reinterpret_cast<unsigned char *>(at) + sizeof(void *)) = false;
+
+	if(left_available_block == nullptr) {
+		get_ptr_on_next_available_block(get_ptr_on_first_available_block() = at) = right_available_block;
 	}
 
-	while (left_available_block != nullptr && (get_ptr_on_next_available_block(left_available_block) == at) &&
-	(get_size_current_block_with_metadata(left_available_block) == get_size_current_block_with_metadata(at))	|| right_available_block != nullptr && (get_ptr_on_previous_available_block(right_available_block) == at) &&
-	(get_size_current_block_with_metadata(right_available_block) == get_size_current_block_with_metadata(at)))
+	while ((left_available_block != nullptr && (get_ptr_on_next_block(left_available_block) == at) &&
+	(get_size_current_block_with_metadata(left_available_block) == get_size_current_block_with_metadata(at)))	|| (right_available_block != nullptr && (get_ptr_on_next_block(at) == right_available_block) && (get_size_current_block_with_metadata(right_available_block) == get_size_current_block_with_metadata(at))))
 	{
-		if (left_available_block != nullptr && (get_ptr_on_next_available_block(left_available_block) == at) && (get_size_current_block_with_metadata(left_available_block) == get_size_current_block_with_metadata(at)))
+		if (left_available_block != nullptr && (get_ptr_on_next_block(left_available_block) == at) && (get_size_current_block_with_metadata(left_available_block) == get_size_current_block_with_metadata(at)))
 		{
 			initialize_block_metadata(left_available_block, get_ptr_on_parent_allocator(left_available_block), false,
-									  ++get_size_current_block_with_metadata(left_available_block),get_ptr_on_previous_available_block(left_available_block),									  get_ptr_on_next_available_block(at));
+									  ++get_size_current_block_with_metadata(left_available_block),
+									  get_ptr_on_previous_available_block(left_available_block),
+									  get_ptr_on_next_available_block(left_available_block));
+			at = left_available_block;
+			if (get_ptr_on_next_available_block(at) != nullptr) {
+				get_ptr_on_previous_available_block(get_ptr_on_next_available_block(at)) = at;
+			}
 		}
 
-		if (right_available_block != nullptr && (get_ptr_on_previous_available_block(right_available_block) == at) && (get_size_current_block_with_metadata(right_available_block) == get_size_current_block_with_metadata(at)))
+		if (right_available_block != nullptr && (get_ptr_on_next_block(at) == right_available_block) &&
+		(get_size_current_block_with_metadata(right_available_block) == get_size_current_block_with_metadata(at)))
 		{
-			initialize_block_metadata(at, get_ptr_on_parent_allocator(at), false,++get_size_current_block_with_metadata(at),get_ptr_on_previous_available_block(at),	get_ptr_on_next_available_block(right_available_block));
+			initialize_block_metadata(at, get_ptr_on_parent_allocator(at), false,
+									  ++get_size_current_block_with_metadata(at),get_ptr_on_previous_available_block
+									  (right_available_block),get_ptr_on_next_available_block(right_available_block));
+			if (get_ptr_on_next_available_block(at) != nullptr) {
+				get_ptr_on_previous_available_block(get_ptr_on_next_available_block(at)) = at;
+			}
 		}
 		left_available_block = get_ptr_on_previous_available_block(at);
 		right_available_block = get_ptr_on_next_available_block(at);
@@ -319,6 +338,12 @@ inline void *&allocator_buddies_system::get_ptr_on_previous_available_block(void
 	return *reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(current_block) + sizeof(void *) + sizeof(bool) + sizeof(size_t));
 }
 
+inline void *allocator_buddies_system::get_ptr_on_next_block(void *current_block) const
+{
+	return reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(current_block) + (1 <<
+			get_size_current_block_with_metadata(current_block)));
+}
+
 inline void *allocator_buddies_system::get_ptr_on_parent_allocator(void *current_block) const
 {
 	return *reinterpret_cast<void **>(current_block);
@@ -327,7 +352,7 @@ inline void *allocator_buddies_system::get_ptr_on_parent_allocator(void *current
 inline size_t &allocator_buddies_system::get_size_current_block_with_metadata(void *current_block) const
 {
 	debug_with_guard("get_size_current_block(void *) method called");
-	return *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(current_block) + sizeof(void *) + sizeof	(bool));
+	return *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(current_block) + sizeof(void *) + sizeof(bool));
 }
 
 inline bool allocator_buddies_system::is_block_occupied(void *current_block) const
